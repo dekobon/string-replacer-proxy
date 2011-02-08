@@ -13,7 +13,7 @@
    limitations under the License.
  */
 
-package stringreplacer.rewritting;
+package stringreplacer.rewriting;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +36,9 @@ class MatchAndReplaceStream extends InputRewriterStream {
     
     public final String matchText;
     public final String replaceText;
+
+    private final StringBuffer nestedInputStreamRecord = new StringBuffer();
+
     
     public MatchAndReplaceStream(InputStream source, String matchText,
             String replaceText) {
@@ -48,6 +51,17 @@ class MatchAndReplaceStream extends InputRewriterStream {
         this.replace = replaceText.getBytes();
         
         buffer = new ArrayBlockingQueue<Byte>(match.length + 1);
+
+        if (source instanceof MatchAndReplaceStream) {
+            MatchAndReplaceStream s = ((MatchAndReplaceStream)source);
+            nestedInputStreamRecord.append(s.nestedInputStreamRecord);
+        }
+
+        if (nestedInputStreamRecord.length() > 0) {
+            nestedInputStreamRecord.append(" / ");
+        }
+
+        nestedInputStreamRecord.append("[" + matchText + "/" + replaceText + "]");
     }
 
     @Override
@@ -94,5 +108,10 @@ class MatchAndReplaceStream extends InputRewriterStream {
         replacePos = 0;
         
         return this.read();
-    }  
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " " + nestedInputStreamRecord.toString();
+    }
 }

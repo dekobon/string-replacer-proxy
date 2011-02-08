@@ -3,9 +3,9 @@
  * and open the template in the editor.
  */
 
-package stringreplacer.rewritting;
+package stringreplacer.rewriting;
 
-import stringreplacer.rewritting.MatchAndReplaceStream;
+import stringreplacer.rewriting.MatchAndReplaceStream;
 import java.io.InputStream;
 import junit.framework.TestCase;
 import org.apache.commons.io.IOUtils;

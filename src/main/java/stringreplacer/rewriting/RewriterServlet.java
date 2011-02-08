@@ -13,8 +13,9 @@
    limitations under the License.
  */
 
-package stringreplacer.rewritting;
+package stringreplacer.rewriting;
 
+import stringreplacer.utils.ResourceLoader;
 import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -42,7 +43,7 @@ import static org.apache.commons.lang.StringUtils.isNotEmpty;
  *
  * @author Elijah Zupancic
  */
-public class LinkRewriterServlet extends HttpServlet {
+public class RewriterServlet extends HttpServlet {
     private static final List<String> targetContentTypes = 
             ImmutableList.of("text/html", "application/x-javascript",
                              "text/css", "application/json", 
@@ -57,7 +58,7 @@ public class LinkRewriterServlet extends HttpServlet {
     
     private Map<String, String> replacements;
     
-    public LinkRewriterServlet() {
+    public RewriterServlet() {
         super();
     }
 
@@ -67,6 +68,10 @@ public class LinkRewriterServlet extends HttpServlet {
                 
         try {
             this.replacements = parseReplacementsData("/WEB-INF/replacements.csv");
+
+            //ResourceLoader replacementData = new ResourceLoader("/WEB-INF/replacements.csv");
+            //this.replacements = parseReplacementsData(replacementData.getInputStream());
+
         } catch (Exception e) {
             throw new ServletException("An error occured when loading the " +
                     "replacements configuration file", e);
@@ -78,6 +83,7 @@ public class LinkRewriterServlet extends HttpServlet {
      */
     protected void doRequest(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
+
         /* We code the origin server name as the first directory in the URL
          * being requested. This would normally be setup in an Apache
          * ProxyPass setting. Here we slice out the origin server name from
@@ -113,6 +119,7 @@ public class LinkRewriterServlet extends HttpServlet {
         
         try {
             connection = openUrlConnection(origin, path, request);
+            log("Opening: " + connection);
         } catch (FileNotFoundException fnfe) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
@@ -144,9 +151,9 @@ public class LinkRewriterServlet extends HttpServlet {
                 /* We have received a HTTP relocation request. We will want to
                  * rewrite this url as well. */
                 if (key != null && key.trim().equalsIgnoreCase("Location")) {
-                    System.out.print("Redirect: " + value + " => ");
+                    log("Redirect: " + value + " => ");
                     value = processStringWithRewriters(value);
-                    System.out.println(value);
+                    log(value);
                 }
                 
                 response.setHeader(key, value);
@@ -164,7 +171,7 @@ public class LinkRewriterServlet extends HttpServlet {
             
             // Rewrite the input stream
             if (matching) {
-                attachNestedStreams(in);
+                in = attachNestedStreams(in);
                 copyFromOrigin(in, response);
             
             // Do nothing and just copy it
@@ -177,14 +184,18 @@ public class LinkRewriterServlet extends HttpServlet {
         }
     }
     
-    protected void attachNestedStreams(InputStream in) throws IOException {
+    protected InputStream attachNestedStreams(InputStream in) throws IOException {
+        InputStream attached = in;
+
         /* Add an input stream filter for every matching pair configured.
          * It still remains to be seen how well this approach performs. */
         for (String match : replacements.keySet()) {
             String replace = replacements.get(match);
 
-            in = new MatchAndReplaceStream(in, match, replace);
+            attached = new MatchAndReplaceStream(in, match, replace);
         }
+
+        return attached;
     }
     
     protected String processStringWithRewriters(String source) throws IOException {
@@ -265,9 +276,13 @@ public class LinkRewriterServlet extends HttpServlet {
     
     private Map<String, String> parseReplacementsData(String path)
             throws IOException {
-        Map<String, String> matches = new HashMap();
-
         InputStream in = getServletContext().getResourceAsStream(path);
+        return parseReplacementsData(in);
+    }
+
+    private Map<String, String> parseReplacementsData(InputStream in)
+            throws IOException {
+        Map<String, String> matches = new HashMap();
         
         Scanner scanner = new Scanner(in, 
                 Charset.defaultCharset().displayName());

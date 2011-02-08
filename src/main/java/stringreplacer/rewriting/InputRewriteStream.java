@@ -13,7 +13,7 @@
    limitations under the License.
  */
 
-package stringreplacer.rewritting;
+package stringreplacer.rewriting;
 
 import java.io.InputStream;
 
